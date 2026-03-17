@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  # Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nlp-sql-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - nlp-sql-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Backend API Service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nlp-sql-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - MOCK_MODE=true
+      - LOG_LEVEL=INFO
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - redis
+      - opensearch
+    restart: unless-stopped
+    networks:
+      - nlp-sql-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis Cache (Optional - for production)
+  redis:
+    image: redis:7-alpine
+    container_name: nlp-sql-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - nlp-sql-network
+    restart: unless-stopped
+    profiles:
+      - full
+
+  # OpenSearch (Optional - for production)
+  opensearch:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: nlp-sql-opensearch
+    environment:
+      - cluster.name=nlp-sql-cluster
+      - node.name=opensearch-node1
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_SECURITY_PLUGIN=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    networks:
+      - nlp-sql-network
+    restart: unless-stopped
+    profiles:
+      - full
+
+volumes:
+  redis-data:
+  opensearch-data:
+
+networks:
+  nlp-sql-network:
+    driver: bridge

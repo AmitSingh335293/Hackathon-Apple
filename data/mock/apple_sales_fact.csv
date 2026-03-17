@@ -1,0 +1,76 @@
+date,product,region,revenue,units_sold,customer_segment
+2024-01-01,iPhone,North America,45000.00,150,consumer
+2024-01-01,iPad,Europe,32000.00,100,enterprise
+2024-01-01,Mac,Asia Pacific,56000.00,80,education
+2024-01-01,Apple Watch,India,12000.00,200,consumer
+2024-01-01,AirPods,China,18000.00,300,consumer
+2024-01-02,iPhone,India,38000.00,180,consumer
+2024-01-02,iPad,North America,29000.00,90,consumer
+2024-01-02,Mac,Europe,51000.00,75,enterprise
+2024-01-02,Apple Watch,Asia Pacific,15000.00,250,consumer
+2024-01-02,AirPods,Japan,21000.00,350,consumer
+2024-01-03,iPhone,China,52000.00,200,consumer
+2024-01-03,iPad,India,27000.00,85,education
+2024-01-03,Mac,North America,48000.00,70,enterprise
+2024-01-03,Apple Watch,Europe,13000.00,220,consumer
+2024-01-03,AirPods,Asia Pacific,19000.00,320,consumer
+2024-01-15,iPhone,Europe,47000.00,160,consumer
+2024-01-15,iPad,Asia Pacific,31000.00,95,enterprise
+2024-01-15,Mac,India,43000.00,65,education
+2024-01-15,Apple Watch,North America,14000.00,240,consumer
+2024-01-15,AirPods,China,22000.00,370,consumer
+2024-02-01,iPhone,Asia Pacific,49000.00,170,consumer
+2024-02-01,iPad,China,34000.00,105,enterprise
+2024-02-01,Mac,Japan,54000.00,82,education
+2024-02-01,Apple Watch,India,11000.00,190,consumer
+2024-02-01,AirPods,Europe,20000.00,340,consumer
+2024-02-14,iPhone,India,41000.00,185,consumer
+2024-02-14,iPad,North America,28000.00,88,consumer
+2024-02-14,Mac,Europe,52000.00,78,enterprise
+2024-02-14,Apple Watch,Asia Pacific,16000.00,260,consumer
+2024-02-14,AirPods,Japan,23000.00,380,consumer
+2024-03-01,iPhone,North America,53000.00,210,consumer
+2024-03-01,iPad,Europe,36000.00,110,enterprise
+2024-03-01,Mac,Asia Pacific,58000.00,88,education
+2024-03-01,Apple Watch,India,13500.00,230,consumer
+2024-03-01,AirPods,China,24000.00,400,consumer
+2024-03-15,iPhone,China,48000.00,195,consumer
+2024-03-15,iPad,India,30000.00,92,education
+2024-03-15,Mac,North America,50000.00,72,enterprise
+2024-03-15,Apple Watch,Europe,14500.00,245,consumer
+2024-03-15,AirPods,Asia Pacific,21500.00,360,consumer
+2024-10-01,iPhone,India,62000.00,250,consumer
+2024-10-01,iPad,India,38000.00,120,enterprise
+2024-10-01,Mac,India,47000.00,68,education
+2024-10-01,Apple Watch,India,17000.00,280,consumer
+2024-10-01,AirPods,India,25000.00,420,consumer
+2024-10-15,iPhone,India,59000.00,240,consumer
+2024-10-15,iPad,India,35000.00,115,enterprise
+2024-10-15,Mac,India,45000.00,65,education
+2024-10-15,Apple Watch,India,16000.00,270,consumer
+2024-10-15,AirPods,India,24500.00,410,consumer
+2024-11-01,iPhone,India,64000.00,260,consumer
+2024-11-01,iPad,India,39000.00,125,enterprise
+2024-11-01,Mac,India,48000.00,70,education
+2024-11-01,Apple Watch,India,17500.00,290,consumer
+2024-11-01,AirPods,India,26000.00,430,consumer
+2024-11-15,iPhone,India,61000.00,255,consumer
+2024-11-15,iPad,India,37000.00,122,enterprise
+2024-11-15,Mac,India,46000.00,67,education
+2024-11-15,Apple Watch,India,16500.00,285,consumer
+2024-11-15,AirPods,India,25500.00,425,consumer
+2024-12-01,iPhone,India,66000.00,270,consumer
+2024-12-01,iPad,India,40000.00,130,enterprise
+2024-12-01,Mac,India,49000.00,72,education
+2024-12-01,Apple Watch,India,18000.00,300,consumer
+2024-12-01,AirPods,India,27000.00,440,consumer
+2024-12-15,iPhone,India,63000.00,265,consumer
+2024-12-15,iPad,India,38500.00,128,enterprise
+2024-12-15,Mac,India,47500.00,71,education
+2024-12-15,Apple Watch,India,17800.00,295,consumer
+2024-12-15,AirPods,India,26500.00,435,consumer
+2024-12-31,iPhone,India,65000.00,268,consumer
+2024-12-31,iPad,India,39500.00,129,enterprise
+2024-12-31,Mac,India,48500.00,71,education
+2024-12-31,Apple Watch,India,18200.00,298,consumer
+2024-12-31,AirPods,India,27200.00,438,consumer

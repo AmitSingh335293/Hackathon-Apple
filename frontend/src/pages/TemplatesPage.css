@@ -1,0 +1,30 @@
+.templates-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.templates-container {
+  min-height: 400px;
+}
+
+.template-example {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #f9f9f9;
+  border-radius: 8px;
+}
+
+.template-example h3 {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.template-example code {
+  display: block;
+  background: #fff;
+  padding: 1rem;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+}
