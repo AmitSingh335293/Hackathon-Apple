@@ -14,11 +14,11 @@ from app.models import (
     ErrorResponse
 )
 from app.services import (
-    QueryBuilder,
     QueryExecutor,
     GovernanceService,
     LLMService,
     ResultFormatter,
+    MCPClientService,
     QueryValidationError
 )
 from app.utils import get_logger, RequestContextLogger
@@ -39,13 +39,11 @@ async def ask_query(request: QueryRequest) -> QueryResponse:
     Main endpoint for NLP to SQL conversion
     
     Flow:
-    1. Authenticate user
-    2. Extract intent using LLM
-    3. Build SQL query (template or generated)
-    4. Validate query with governance
-    5. Execute query (if auto_execute=True)
-    6. Generate summary
-    7. Return results
+    1. Generate SQL via MCP Client Service (Strands Agent + MCP tools)
+    2. Validate query with governance
+    3. Execute query (if auto_execute=True)
+    4. Generate summary
+    5. Return results
     """
     
     # Create request context for logging
@@ -56,26 +54,34 @@ async def ask_query(request: QueryRequest) -> QueryResponse:
             ctx.log("info", "Processing query request", query_id=query_id)
             
             # Initialize services
-            query_builder = QueryBuilder()
+            mcp_client = MCPClientService()
             governance_service = GovernanceService()
             query_executor = QueryExecutor()
             llm_service = LLMService()
             
-            # Step 1: Build SQL query
-            ctx.log("info", "Building SQL query")
-            build_result = await query_builder.build_query(
-                user_query=request.query,
-                user_id=request.user_id
-            )
+            # Step 1: Generate SQL via MCP Client (Strands Agent picks the right tool)
+            ctx.log("info", "Generating SQL via MCP tools")
+            mcp_result = mcp_client.generate_sql(user_query=request.query)
             
-            sql_query = build_result['sql_query']
-            metadata = build_result['metadata']
+            sql_query = mcp_result["sql"]
+            tool_used = mcp_result.get("tool")
+            
+            if not sql_query:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Could not generate SQL for the given query. No matching MCP tool found."
+                )
+            
+            metadata = {
+                "generation_method": "mcp_tool",
+                "mcp_tool": tool_used,
+            }
             
             ctx.log(
                 "info",
-                "SQL query built",
-                generation_method=metadata.get('generation_method'),
-                matched_template=metadata.get('matched_template')
+                "SQL generated via MCP",
+                tool=tool_used,
+                query_length=len(sql_query),
             )
             
             # Step 2: Validate query
@@ -84,7 +90,7 @@ async def ask_query(request: QueryRequest) -> QueryResponse:
                 validation_result = await governance_service.validate_query(
                     sql_query=sql_query,
                     user_id=request.user_id,
-                    user_permissions=None  # TODO: Fetch from Cognito
+                    user_permissions=None
                 )
             except QueryValidationError as e:
                 ctx.log("error", "Query validation failed", error=str(e))
@@ -96,7 +102,7 @@ async def ask_query(request: QueryRequest) -> QueryResponse:
             warnings = validation_result['warnings']
             estimated_cost = validation_result['estimated_cost_usd']
             
-            # Step 3: Execute query (if auto_execute or mock mode)
+            # Step 3: Execute query (if auto_execute)
             data_preview = []
             total_rows = 0
             execution_time = None
@@ -142,7 +148,7 @@ async def ask_query(request: QueryRequest) -> QueryResponse:
                 total_rows=total_rows,
                 execution_time_seconds=execution_time,
                 estimated_cost_usd=estimated_cost,
-                matched_template=metadata.get('matched_template'),
+                matched_template=tool_used,
                 warnings=warnings,
                 metadata=metadata
             )
