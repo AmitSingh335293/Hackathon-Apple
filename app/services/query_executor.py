@@ -5,6 +5,8 @@ Executes SQL queries on Amazon Athena or mock data
 
 import time
 import uuid
+import asyncio
+import re
 from typing import Dict, Any, List, Optional
 import boto3
 from botocore.exceptions import ClientError
@@ -28,12 +30,21 @@ class QueryExecutor:
         self.settings = settings
         
         if not self.settings.MOCK_MODE:
-            self.client = boto3.client(
-                'athena',
-                region_name=self.settings.AWS_REGION,
-                aws_access_key_id=self.settings.AWS_ACCESS_KEY_ID,
-                aws_secret_access_key=self.settings.AWS_SECRET_ACCESS_KEY
-            )
+            # Build client config
+            client_config = {'region_name': self.settings.AWS_REGION}
+            
+            # Add credentials if provided in .env
+            if self.settings.AWS_ACCESS_KEY_ID and self.settings.AWS_SECRET_ACCESS_KEY:
+                client_config['aws_access_key_id'] = self.settings.AWS_ACCESS_KEY_ID
+                client_config['aws_secret_access_key'] = self.settings.AWS_SECRET_ACCESS_KEY
+                # Add session token if provided (for temporary/MFA credentials)
+                if self.settings.AWS_SESSION_TOKEN:
+                    client_config['aws_session_token'] = self.settings.AWS_SESSION_TOKEN
+                logger.info("Using credentials from environment variables")
+            else:
+                logger.info("Using AWS CLI credentials (default credential chain)")
+            
+            self.client = boto3.client('athena', **client_config)
         else:
             self.client = None
             logger.info("Query Executor running in MOCK mode")
@@ -127,6 +138,9 @@ class QueryExecutor:
         """
         try:
             # Start query execution
+            print(self.settings.ATHENA_DATABASE)
+            print(self.settings.ATHENA_OUTPUT_LOCATION)
+            print(sql_query)
             response = self.client.start_query_execution(
                 QueryString=sql_query,
                 QueryExecutionContext={
@@ -135,7 +149,7 @@ class QueryExecutor:
                 ResultConfiguration={
                     'OutputLocation': self.settings.ATHENA_OUTPUT_LOCATION
                 },
-                WorkGroup=self.settings.ATHENA_WORKGROUP
+                # WorkGroup=self.settings.ATHENA_WORKGROUP
             )
             
             execution_id = response['QueryExecutionId']
@@ -182,13 +196,33 @@ class QueryExecutor:
             status = response['QueryExecution']['Status']['State']
             
             if status in ['SUCCEEDED', 'FAILED', 'CANCELLED']:
+                # Log execution stats
+                if status == 'SUCCEEDED':
+                    stats = response['QueryExecution'].get('Statistics', {})
+                    data_scanned = stats.get('DataScannedInBytes', 0) / (1024 * 1024)  # MB
+                    execution_time = stats.get('EngineExecutionTimeInMillis', 0) / 1000  # seconds
+                    logger.info(
+                        "Query completed",
+                        execution_id=execution_id,
+                        data_scanned_mb=round(data_scanned, 2),
+                        execution_time_sec=round(execution_time, 2)
+                    )
+                elif status == 'FAILED':
+                    reason = response['QueryExecution']['Status'].get('StateChangeReason', 'Unknown')
+                    logger.error("Query failed", execution_id=execution_id, reason=reason)
+                
                 return status
             
             if time.time() - start_time > max_wait_seconds:
                 logger.warning("Query timeout exceeded", execution_id=execution_id)
+                # Try to cancel the query
+                try:
+                    self.client.stop_query_execution(QueryExecutionId=execution_id)
+                except Exception as e:
+                    logger.error("Failed to stop query", error=str(e))
                 return 'TIMEOUT'
             
-            time.sleep(1)
+            await asyncio.sleep(1)  # Use asyncio.sleep for async function
     
     async def _get_query_results(self, execution_id: str) -> List[Dict[str, Any]]:
         """
@@ -260,6 +294,8 @@ class QueryExecutor:
             Query results as list of dictionaries
         """
         try:
+            logger.info("Executing mock query")
+            
             # Simple SQL parsing for common patterns
             query_lower = sql_query.lower()
             
@@ -269,13 +305,12 @@ class QueryExecutor:
             if 'where' in query_lower:
                 df = self._apply_where_clause(df, sql_query)
             
-            # Parse aggregations
-            if 'sum(' in query_lower or 'count(' in query_lower or 'avg(' in query_lower:
-                df = self._apply_aggregation(df, sql_query)
-            
-            # Parse GROUP BY
+            # Parse GROUP BY (with aggregations)
             if 'group by' in query_lower:
                 df = self._apply_group_by(df, sql_query)
+            elif 'sum(' in query_lower or 'count(' in query_lower or 'avg(' in query_lower:
+                # Aggregation without GROUP BY
+                df = self._apply_aggregation(df, sql_query)
             
             # Parse ORDER BY
             if 'order by' in query_lower:
@@ -285,6 +320,8 @@ class QueryExecutor:
             if 'limit' in query_lower:
                 limit = self._extract_limit(sql_query)
                 df = df.head(limit)
+            else:
+                df = df.head(100)  # Default limit
             
             # Convert to list of dictionaries
             results = df.to_dict('records')

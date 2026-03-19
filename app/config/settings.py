@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     AWS_REGION: str = "us-east-1"
     AWS_ACCESS_KEY_ID: Optional[str] = None
     AWS_SECRET_ACCESS_KEY: Optional[str] = None
+    AWS_SESSION_TOKEN: Optional[str] = None  # For temporary/MFA credentials
     
     # AWS Bedrock
     BEDROCK_MODEL_ID: str = "anthropic.claude-3-sonnet-20240229-v1:0"
@@ -39,15 +40,15 @@ class Settings(BaseSettings):
     OPENSEARCH_USE_SSL: bool = True
     
     # Amazon Athena
-    ATHENA_DATABASE: str = "apple_analytics"
+    ATHENA_DATABASE: str = "apple_analytics_db"  # Updated to match setup
     ATHENA_WORKGROUP: str = "primary"
-    ATHENA_OUTPUT_LOCATION: str = "s3://athena-query-results/"
+    ATHENA_OUTPUT_LOCATION: str = "s3://apple-analytics-data-lake/athena-results/"
     ATHENA_MAX_EXECUTION_TIME: int = 300  # seconds
     ATHENA_QUERY_TIMEOUT: int = 60
     
     # AWS Glue
     GLUE_CATALOG_ID: Optional[str] = None
-    GLUE_DATABASE: str = "apple_analytics"
+    GLUE_DATABASE: str = "apple_analytics_db"  # Updated to match setup
     
     # AWS Lake Formation
     LAKE_FORMATION_ENABLED: bool = False

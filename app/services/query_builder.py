@@ -219,34 +219,66 @@ class QueryBuilder:
         return {
             "database": self.settings.ATHENA_DATABASE,
             "tables": {
-                "apple_sales_fact": {
-                    "description": "Fact table containing Apple product sales data",
+                "sales": {
+                    "description": "Fact table containing sales transactions",
                     "columns": [
-                        {"name": "date", "type": "DATE", "description": "Transaction date"},
-                        {"name": "product", "type": "VARCHAR", "description": "Product name (iPhone, iPad, Mac, etc.)"},
-                        {"name": "region", "type": "VARCHAR", "description": "Geographic region"},
-                        {"name": "revenue", "type": "DECIMAL", "description": "Revenue in USD"},
-                        {"name": "units_sold", "type": "INTEGER", "description": "Number of units sold"},
-                        {"name": "customer_segment", "type": "VARCHAR", "description": "Customer segment (consumer, enterprise, education)"}
+                        {"name": "sale_id", "type": "STRING", "description": "Unique sale identifier"},
+                        {"name": "sale_date", "type": "STRING", "description": "Sale date (YYYY-MM-DD format)"},
+                        {"name": "store_id", "type": "STRING", "description": "Foreign key to stores table"},
+                        {"name": "product_id", "type": "STRING", "description": "Foreign key to products table"},
+                        {"name": "quantity", "type": "BIGINT", "description": "Quantity sold"}
+                    ],
+                    "joins": [
+                        "JOIN products ON sales.product_id = products.product_id",
+                        "JOIN stores ON sales.store_id = stores.store_id"
                     ]
                 },
-                "apple_products_dim": {
-                    "description": "Dimension table for product information",
+                "products": {
+                    "description": "Product catalog with pricing",
                     "columns": [
-                        {"name": "product_id", "type": "VARCHAR", "description": "Product identifier"},
-                        {"name": "product_name", "type": "VARCHAR", "description": "Product name"},
-                        {"name": "category", "type": "VARCHAR", "description": "Product category"},
-                        {"name": "launch_date", "type": "DATE", "description": "Product launch date"}
+                        {"name": "product_id", "type": "STRING", "description": "Primary key"},
+                        {"name": "product_name", "type": "STRING", "description": "Product name (e.g., iPhone 15 Pro, MacBook Air M3)"},
+                        {"name": "category_id", "type": "STRING", "description": "Foreign key to categories"},
+                        {"name": "launch_date", "type": "STRING", "description": "Product launch date"},
+                        {"name": "price", "type": "BIGINT", "description": "Product price in USD"}
+                    ],
+                    "joins": [
+                        "JOIN categories ON products.category_id = categories.category_id"
                     ]
                 },
-                "apple_regions_dim": {
-                    "description": "Dimension table for geographic regions",
+                "stores": {
+                    "description": "Store/location information",
                     "columns": [
-                        {"name": "region_id", "type": "VARCHAR", "description": "Region identifier"},
-                        {"name": "region_name", "type": "VARCHAR", "description": "Region name"},
-                        {"name": "country", "type": "VARCHAR", "description": "Country name"},
-                        {"name": "continent", "type": "VARCHAR", "description": "Continent"}
+                        {"name": "store_id", "type": "STRING", "description": "Primary key"},
+                        {"name": "store_name", "type": "STRING", "description": "Store name (e.g., Apple Fifth Avenue)"},
+                        {"name": "city", "type": "STRING", "description": "City name"},
+                        {"name": "country", "type": "STRING", "description": "Country name"}
+                    ]
+                },
+                "categories": {
+                    "description": "Product categories",
+                    "columns": [
+                        {"name": "category_id", "type": "STRING", "description": "Primary key"},
+                        {"name": "category_name", "type": "STRING", "description": "Category (iPhone, Mac, iPad, Apple Watch, AirPods, Accessories)"}
+                    ]
+                },
+                "warranty": {
+                    "description": "Warranty claims",
+                    "columns": [
+                        {"name": "claim_id", "type": "STRING", "description": "Primary key"},
+                        {"name": "claim_date", "type": "STRING", "description": "Claim date (YYYY-MM-DD)"},
+                        {"name": "sale_id", "type": "STRING", "description": "Foreign key to sales"},
+                        {"name": "repair_status", "type": "STRING", "description": "Status: Completed, Rejected, Pending, In Progress"}
+                    ],
+                    "joins": [
+                        "JOIN sales ON warranty.sale_id = sales.sale_id"
                     ]
                 }
-            }
+            },
+            "common_patterns": [
+                "Revenue: SUM(sales.quantity * products.price)",
+                "Filter by product: products.product_name LIKE '%iPhone%'",
+                "Filter by country: stores.country = 'India'",
+                "Date range: sales.sale_date BETWEEN '2024-01-01' AND '2024-12-31'"
+            ]
         }
