@@ -4,7 +4,7 @@ Pydantic models for API request validation
 """
 
 from pydantic import BaseModel, Field, validator
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 
 class QueryRequest(BaseModel):
@@ -92,3 +92,27 @@ class TemplateCreateRequest(BaseModel):
                 "tags": ["revenue", "region", "sales"]
             }
         }
+
+
+class EmailRequest(BaseModel):
+    """
+    Request model for /send-email endpoint.
+    SMTP credentials are read from server-side .env — only recipients and content are needed.
+    """
+    recipient_emails: List[str] = Field(..., description="List of recipient email addresses", min_length=1)
+    subject: str = Field("Query Results — VoiceGenie AI", description="Email subject line")
+    body: str = Field("Please find the query results attached as a CSV file.", description="Plain-text email body")
+    csv_content: str = Field(..., description="Raw CSV content to attach")
+    csv_filename: str = Field("query_results.csv", description="Filename for the CSV attachment")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "recipient_emails": ["colleague@example.com", "manager@example.com"],
+                "subject": "iPhone Revenue Data",
+                "body": "Hi,\n\nPlease find the query results attached.\n\nBest,\nVoiceGenie AI",
+                "csv_content": "product,revenue\niPhone,100000",
+                "csv_filename": "query_results.csv"
+            }
+        }
+

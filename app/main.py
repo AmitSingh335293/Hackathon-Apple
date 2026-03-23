@@ -10,7 +10,7 @@ from datetime import datetime
 
 from app.config import get_settings
 from app.utils import setup_logging, get_logger
-from app.routes import query_router
+from app.routes import query_router, email_router
 from app.models import HealthResponse, ErrorResponse
 
 # Initialize settings and logging
@@ -168,6 +168,7 @@ async def root():
 
 # Include routers
 app.include_router(query_router)
+app.include_router(email_router)
 
 
 # Development server runner

@@ -88,9 +88,18 @@ class Settings(BaseSettings):
 
     AWS_BEARER_TOKEN_BEDROCK : str =""
    # Mock Mode (for testing without AWS)
-    MOCK_MODE: bool = True
+    MOCK_MODE: bool = False
     MOCK_DATA_PATH: str = "data/mock/apple_sales_fact.csv"
-    
+
+    # SMTP Email Configuration
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USE_TLS: bool = True
+    SMTP_USERNAME: str = "as335293@gmail.com"
+    SMTP_PASSWORD: str = "ytsz xlwz paiw vogs"
+    SMTP_SENDER_EMAIL: str = "as335293@gmail.com"
+    SMTP_SENDER_NAME: str = "VoiceGenie AI"
+
     class Config:
         env_file = ".env"
         case_sensitive = True

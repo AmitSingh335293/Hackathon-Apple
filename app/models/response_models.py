@@ -33,7 +33,12 @@ class QueryResponse(BaseModel):
         default_factory=list,
         description="Preview of query results (top 5 rows)"
     )
-    
+
+    full_data: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Complete query results (all rows) — used for CSV export and email"
+    )
+
     summary: Optional[str] = Field(
         None,
         description="Natural language summary of the results"
