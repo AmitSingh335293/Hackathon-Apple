@@ -67,10 +67,9 @@ const theme = extendTheme({
 });
 
 const samplePrompts = [
-  'What was iPhone revenue in India last quarter?',
-  "Show me revenue by region for all products",
-  'Total sales for iPad in 2024',
-  'Compare iPhone and Mac revenue',
+  'Total sales for product MacBook in 2024',
+  "Show all products launched in 2023 in the Wearable category",
+  'Rank all cities in Germany by total revenue',
   'What are the top selling products?',
   'Show Apple Watch sales trends',
   'Compare store-level sales performance for all stores in Japan'
