@@ -486,6 +486,7 @@ const ChatBoxContent = () => {
       const queryData = {
         sql_query: data.sql_query,
         data_preview: data.data_preview,
+        full_data: data.full_data || data.data_preview, // fallback to preview if missing
         total_rows: data.total_rows,
         execution_time_seconds: data.execution_time_seconds,
         estimated_cost_usd: data.estimated_cost_usd,
@@ -894,6 +895,7 @@ const ChatBoxContent = () => {
                     {entry.queryData && entry.queryData.data_preview && entry.queryData.data_preview.length > 0 && (
                       <DataTable
                         data={entry.queryData.data_preview}
+                        fullData={entry.queryData.full_data}
                         totalRows={entry.queryData.total_rows}
                         executionTime={entry.queryData.execution_time_seconds}
                         estimatedCost={entry.queryData.estimated_cost_usd}

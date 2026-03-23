@@ -33,6 +33,7 @@ class ResultFormatter:
         if not results:
             return {
                 "data_preview": [],
+                "full_data": [],
                 "total_rows": 0,
                 "columns": [],
                 "statistics": {}
@@ -49,6 +50,7 @@ class ResultFormatter:
         
         return {
             "data_preview": preview,
+            "full_data": results,          # ← all rows, no truncation
             "total_rows": len(results),
             "columns": columns,
             "statistics": statistics

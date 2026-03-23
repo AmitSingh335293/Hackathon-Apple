@@ -104,6 +104,7 @@ async def ask_query(request: QueryRequest) -> QueryResponse:
             
             # Step 3: Execute query (if auto_execute)
             data_preview = []
+            full_data = []
             total_rows = 0
             execution_time = None
             summary = None
@@ -123,10 +124,11 @@ async def ask_query(request: QueryRequest) -> QueryResponse:
                 # Format results
                 formatted = ResultFormatter.format_results(results, preview_rows=5)
                 data_preview = formatted['data_preview']
+                full_data = formatted['full_data']
                 total_rows = formatted['total_rows']
                 
-                ctx.log("info", "Query executed", row_count=total_rows)
-                
+                ctx.log("info", "Query executed", row_count=total_rows, full_data_rows=len(full_data), preview_rows=len(data_preview))
+
                 # Step 4: Generate summary (non-critical — don't fail the request)
                 ctx.log("info", "Generating summary")
                 try:
@@ -148,6 +150,7 @@ async def ask_query(request: QueryRequest) -> QueryResponse:
                 user_query=request.query,
                 sql_query=sql_query,
                 data_preview=data_preview,
+                full_data=full_data if request.auto_execute else [],
                 summary=summary,
                 status=query_status,
                 total_rows=total_rows,
