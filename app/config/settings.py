@@ -74,20 +74,27 @@ class Settings(BaseSettings):
     MAX_QUERY_ROWS: int = 10000
     MAX_QUERY_RUNTIME_SECONDS: int = 300
     MAX_QUERY_COST_USD: float = 10.0
-    ALLOWED_TABLES: list = ["apple_sales_fact", "apple_products_dim", "apple_regions_dim"]
+    ALLOWED_TABLES: list = ["sales", "products", "stores", "category", "warranty"]
     FORBIDDEN_KEYWORDS: list = ["DROP", "DELETE", "UPDATE", "INSERT", "TRUNCATE", "ALTER"]
     
     # Template Matching
     SIMILARITY_THRESHOLD: float = 0.75
     MAX_TEMPLATE_RESULTS: int = 3
     
-    # Mock Mode (for testing without AWS)
+    # MCP Server (runs on a separate port to avoid self-deadlock)
+    MCP_SERVER_PORT: int = 8001
+    MCP_SERVER_URL: str = "http://localhost:8001/mcp/"
+    STRANDS_MODEL_ID: str = "us.anthropic.claude-sonnet-4-20250514-v1:0"
+
+    AWS_BEARER_TOKEN_BEDROCK : str =""
+   # Mock Mode (for testing without AWS)
     MOCK_MODE: bool = True
     MOCK_DATA_PATH: str = "data/mock/apple_sales_fact.csv"
     
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"
 
 
 @lru_cache()
