@@ -1,30 +1,27 @@
-import React from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import QueryPage from './pages/QueryPage'
-import HistoryPage from './pages/HistoryPage'
-import TemplatesPage from './pages/TemplatesPage'
-import Header from './components/Header'
-import './App.css'
+import 'regenerator-runtime/runtime';
+import React, { useEffect, useState } from 'react';
+import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { FaMicrophone, FaMicrophoneSlash } from 'react-icons/fa';
+import { AiOutlineLoading3Quarters } from 'react-icons/ai';
+import './App.css'; // Import a CSS file for custom styling
+import ChatBox from './components/ChatBox';
+import { Box, ChakraProvider, Heading } from '@chakra-ui/react';
 
-/**
- * Main App Component
- * Handles routing and layout for the NLP to SQL Analytics application
- */
-function App() {
-  return (
-    <Router>
-      <div className="App">
-        <Header />
-        <main className="main-content">
-          <Routes>
-            <Route path="/" element={<QueryPage />} />
-            <Route path="/history" element={<HistoryPage />} />
-            <Route path="/templates" element={<TemplatesPage />} />
-          </Routes>
-        </main>
-      </div>
-    </Router>
+const App = () => {
+  
+  return(
+<ChakraProvider>
+    <Box  >
+     <Box h={'54px'} bgGradient="linear(to-r, #4f8cff, #6a82fb, #a1c4fd)" mt={0} boxShadow="0 2px 12px rgba(79,140,255,0.10)" borderRadius="xl" display="flex" alignItems="center" justifyContent="center">
+      <Heading color='white' verticalAlign={'middle'} textAlign={'center'} fontWeight="bold" fontSize={{ base: 'lg', md: '2xl' }} letterSpacing="tight">
+        VoiceGenie AI Assistant
+      </Heading>
+      </Box>
+    <ChatBox></ChatBox>
+    </Box>
+    </ChakraProvider>
   )
-}
+};
 
-export default App
+export default App;
