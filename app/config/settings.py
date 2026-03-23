@@ -87,6 +87,7 @@ class Settings(BaseSettings):
     STRANDS_MODEL_ID: str = "us.anthropic.claude-sonnet-4-20250514-v1:0"
 
     AWS_BEARER_TOKEN_BEDROCK : str = ""
+
    # Mock Mode (for testing without AWS)
     MOCK_MODE: bool = False
     MOCK_DATA_PATH: str = "data/mock/apple_sales_fact.csv"
