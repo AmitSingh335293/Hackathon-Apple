@@ -15,6 +15,32 @@ logger = get_logger(__name__)
 settings = get_settings()
 
 
+# Topics/keywords that indicate a query is relevant to Apple retail sales data
+ALLOWED_TOPICS = [
+    "sale", "sales", "revenue", "units", "quantity", "sold",
+    "product", "iphone", "ipad", "mac", "macbook", "airpods", "apple watch",
+    "homepod", "apple tv", "imac", "accessories", "apple",
+    "store", "stores", "region", "country", "city",
+    "warranty", "claim", "repair", "pending", "rejected",
+    "category", "laptop", "audio", "tablet", "smartphone", "wearable",
+    "streaming", "desktop", "subscription", "speaker",
+    "price", "cost", "average", "total", "count", "trend", "growth",
+    "quarter", "month", "year", "date", "period",
+    "top", "best", "worst", "highest", "lowest", "most", "least",
+    "compare", "comparison", "performance", "profit", "order",
+]
+
+DATABASE_CONTEXT = """This system only answers questions about Apple retail sales data.
+The database contains these tables:
+- sales: transactional sales data (sale_id, sale_date, store_id, product_id, quantity)
+- products: Apple product catalog (Product_ID, Product_Name, Category_ID, Launch_Date, Price)
+- stores: Apple retail store locations (Store_ID, Store_Name, City, Country) across 19 countries
+- category: product categories (category_id, category_name) — Laptop, Audio, Tablet, Smartphone, Wearable, Streaming Device, Desktop, Subscription Service, Smart Speaker, Accessories
+- warranty: warranty claims (claim_id, claim_date, sale_id, repair_status)
+
+Only queries related to these tables and Apple retail analytics are allowed."""
+
+
 class LLMService:
     """
     Service for interacting with AWS Bedrock LLM models
@@ -36,6 +62,63 @@ class LLMService:
             self.client = None
             logger.info("LLM Service running in MOCK mode")
     
+    async def validate_query_relevance(self, user_query: str) -> Dict[str, Any]:
+        """
+        Check whether the user query is relevant to Apple retail sales data.
+        Rejects off-topic queries (e.g. weather, general knowledge, coding help).
+
+        Returns:
+            Dict with keys:
+              - is_relevant (bool)
+              - rejection_message (str | None): friendly message if not relevant
+        """
+        query_lower = user_query.lower()
+
+        # Quick keyword check — if any allowed topic appears, likely relevant
+        if any(topic in query_lower for topic in ALLOWED_TOPICS):
+            return {"is_relevant": True, "rejection_message": None}
+
+        # If no keyword matched, use LLM for a more nuanced check
+        if not self.settings.MOCK_MODE:
+            prompt = f"""You are a strict query-relevance classifier for an Apple Retail Sales analytics bot.
+
+{DATABASE_CONTEXT}
+
+User query: "{user_query}"
+
+Determine if this query is asking about Apple retail sales data, products, stores, warranty claims, or any analytics that can be answered from the tables above.
+
+Respond with ONLY a JSON object:
+{{"is_relevant": true}} or {{"is_relevant": false, "reason": "brief reason"}}"""
+
+            try:
+                response = await self._invoke_model(prompt, max_tokens=100)
+                result = self._parse_json_response(response)
+                if result.get("is_relevant"):
+                    return {"is_relevant": True, "rejection_message": None}
+                reason = result.get("reason", "")
+                return {
+                    "is_relevant": False,
+                    "rejection_message": (
+                        f"Sorry, I can only answer questions about Apple retail sales data "
+                        f"(sales, products, stores, categories, and warranty claims). "
+                        f"{reason}"
+                    ),
+                }
+            except Exception as e:
+                logger.warning("LLM relevance check failed, falling back to rejection", error=str(e))
+
+        # Fallback: no keyword match and either mock mode or LLM call failed → reject
+        return {
+            "is_relevant": False,
+            "rejection_message": (
+                "Sorry, I can only answer questions about Apple retail sales data — "
+                "including sales transactions, products (iPhone, iPad, Mac, etc.), "
+                "store locations, product categories, and warranty claims. "
+                "Please rephrase your question to relate to Apple retail analytics."
+            ),
+        }
+
     async def extract_intent_and_parameters(self, user_query: str) -> Dict[str, Any]:
         """
         Extract intent and parameters from natural language query
