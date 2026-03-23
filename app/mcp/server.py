@@ -59,42 +59,48 @@ def total_sales_revenue_by_country(
         f"SUM(s.quantity) AS total_units_sold, SUM(s.quantity * p.Price) AS total_revenue "
         f"FROM sales s JOIN products p ON s.product_id = p.Product_ID "
         f"JOIN stores st ON s.store_id = st.Store_ID "
-        f"WHERE STR_TO_DATE(s.sale_date, '%d-%m-%Y') BETWEEN {_lit(sd)} AND {_lit(ed)} "
+        f"WHERE date_parse(s.sale_date, '%d-%m-%Y') BETWEEN DATE {_lit(sd)} AND DATE {_lit(ed)} "
         f"GROUP BY st.Country ORDER BY total_revenue DESC"
     )
     return _ok(sql, {"query_id": "Q01", "output_columns": ["Country", "total_transactions", "total_units_sold", "total_revenue"]})
 
 
-# ── Q02: Top N Best-Selling Products by Category ──────────────────────────
+# ── Q02: Top N Best-Selling Products ──────────────────────────────────────
 @mcp.tool(
     name="top_products_by_category",
     description=(
-        "Returns the top N products ranked by units sold within a specific product category "
-        "and date range. Supports all 10 product categories. Used by product managers to "
-        "identify best sellers per category and time window."
+        "Returns the top N products ranked by units sold, optionally filtered by product category "
+        "and/or date range. When no category is specified, returns overall top sellers across all "
+        "categories. Used by product managers to identify best sellers globally or per category."
     ),
-    tags={"sales", "products", "category", "ranking", "best-sellers"},
+    tags={"sales", "products", "category", "ranking", "best-sellers", "top"},
 )
 def top_products_by_category(
-    category_name: Annotated[str, "Product category. Allowed: Laptop, Audio, Tablet, Smartphone, Wearable, Streaming Device, Desktop, Subscription Service, Smart Speaker, Accessories"],
-    start_date: Annotated[str, "Start date (YYYY-MM-DD). Example: 2023-01-01"],
-    end_date: Annotated[str, "End date (YYYY-MM-DD). Example: 2023-12-31"],
+    category_name: Annotated[Optional[str], "Product category (optional, default: all). Allowed: Laptop, Audio, Tablet, Smartphone, Wearable, Streaming Device, Desktop, Subscription Service, Smart Speaker, Accessories"] = None,
+    start_date: Annotated[Optional[str], "Start date (YYYY-MM-DD, optional, default: all time). Example: 2023-01-01"] = None,
+    end_date: Annotated[Optional[str], "End date (YYYY-MM-DD, optional, default: all time). Example: 2023-12-31"] = None,
     top_n: Annotated[Optional[int], "Number of top products to return (default: 10). Example: 5"] = None,
 ) -> str:
-    """[Q02] Top N Best-Selling Products by Category in a Time Period."""
+    """[Q02] Top N Best-Selling Products, optionally filtered by Category and Time Period."""
     errors = []
-    try:
-        cat = _enum(category_name, VALID_CATEGORIES, "category_name")
-    except ValueError as e:
-        errors.append(str(e)); cat = None
-    try:
-        sd = _date(start_date, "start_date")
-    except ValueError as e:
-        errors.append(str(e)); sd = None
-    try:
-        ed = _date(end_date, "end_date")
-    except ValueError as e:
-        errors.append(str(e)); ed = None
+    cat_filter = "1=1"
+    if category_name:
+        try:
+            cat = _enum(category_name, VALID_CATEGORIES, "category_name")
+            cat_filter = f"c.category_name = {_lit(cat)}"
+        except ValueError as e:
+            errors.append(str(e))
+    sd = "2019-01-01"; ed = "2026-12-31"
+    if start_date:
+        try:
+            sd = _date(start_date, "start_date")
+        except ValueError as e:
+            errors.append(str(e))
+    if end_date:
+        try:
+            ed = _date(end_date, "end_date")
+        except ValueError as e:
+            errors.append(str(e))
     n = _pos_int(top_n, "top_n", default=10)
     if errors:
         return _err(errors)
@@ -103,8 +109,8 @@ def top_products_by_category(
         f"SUM(s.quantity * p.Price) AS total_revenue, COUNT(s.sale_id) AS transaction_count "
         f"FROM sales s JOIN products p ON s.product_id = p.Product_ID "
         f"JOIN category c ON p.Category_ID = c.category_id "
-        f"WHERE c.category_name = {_lit(cat)} "
-        f"AND STR_TO_DATE(s.sale_date, '%d-%m-%Y') BETWEEN {_lit(sd)} AND {_lit(ed)} "
+        f"WHERE {cat_filter} "
+        f"AND date_parse(s.sale_date, '%d-%m-%Y') BETWEEN DATE {_lit(sd)} AND DATE {_lit(ed)} "
         f"GROUP BY p.Product_Name, c.category_name ORDER BY total_units_sold DESC LIMIT {n}"
     )
     return _ok(sql, {"query_id": "Q02", "output_columns": ["Product_Name", "category_name", "total_units_sold", "total_revenue", "transaction_count"]})
@@ -152,7 +158,7 @@ def store_performance_by_country(
         f"FROM sales s JOIN products p ON s.product_id = p.Product_ID "
         f"JOIN stores st ON s.store_id = st.Store_ID "
         f"WHERE st.Country = {_lit(co)} "
-        f"AND STR_TO_DATE(s.sale_date, '%d-%m-%Y') BETWEEN {_lit(sd)} AND {_lit(ed)} "
+        f"AND date_parse(s.sale_date, '%d-%m-%Y') BETWEEN DATE {_lit(sd)} AND DATE {_lit(ed)} "
         f"GROUP BY st.Store_ID, st.Store_Name, st.City ORDER BY total_revenue DESC"
     )
     return _ok(sql, {"query_id": "Q03", "output_columns": ["Store_ID", "Store_Name", "City", "total_transactions", "total_units_sold", "avg_order_quantity", "total_revenue", "avg_revenue_per_transaction"]})
@@ -192,13 +198,13 @@ def monthly_sales_trend_by_product(
     if errors:
         return _err(errors)
     sql = (
-        f"SELECT DATE_FORMAT(STR_TO_DATE(s.sale_date, '%d-%m-%Y'), '%Y-%m') AS sale_month, "
+        f"SELECT date_format(date_parse(s.sale_date, '%d-%m-%Y'), '%Y-%m') AS sale_month, "
         f"p.Product_Name, SUM(s.quantity) AS total_units_sold, "
         f"SUM(s.quantity * p.Price) AS total_revenue, COUNT(s.sale_id) AS transaction_count "
         f"FROM sales s JOIN products p ON s.product_id = p.Product_ID "
         f"WHERE p.Product_Name = '{pn}' "
-        f"AND STR_TO_DATE(s.sale_date, '%d-%m-%Y') BETWEEN {_lit(sd)} AND {_lit(ed)} "
-        f"GROUP BY sale_month, p.Product_Name ORDER BY sale_month ASC"
+        f"AND date_parse(s.sale_date, '%d-%m-%Y') BETWEEN DATE {_lit(sd)} AND DATE {_lit(ed)} "
+        f"GROUP BY date_format(date_parse(s.sale_date, '%d-%m-%Y'), '%Y-%m'), p.Product_Name ORDER BY sale_month ASC"
     )
     return _ok(sql, {"query_id": "Q04", "output_columns": ["sale_month", "Product_Name", "total_units_sold", "total_revenue", "transaction_count"]})
 
@@ -287,13 +293,13 @@ def yoy_sales_growth(
         return _err(errors)
     sql = (
         f"SELECT st.Country, c.category_name, "
-        f"SUM(CASE WHEN YEAR(STR_TO_DATE(s.sale_date, '%d-%m-%Y')) = {yc} THEN s.quantity * p.Price ELSE 0 END) AS revenue_current_year, "
-        f"SUM(CASE WHEN YEAR(STR_TO_DATE(s.sale_date, '%d-%m-%Y')) = {yp} THEN s.quantity * p.Price ELSE 0 END) AS revenue_previous_year, "
-        f"SUM(CASE WHEN YEAR(STR_TO_DATE(s.sale_date, '%d-%m-%Y')) = {yc} THEN s.quantity * p.Price ELSE 0 END) - "
-        f"SUM(CASE WHEN YEAR(STR_TO_DATE(s.sale_date, '%d-%m-%Y')) = {yp} THEN s.quantity * p.Price ELSE 0 END) AS revenue_growth, "
-        f"ROUND((SUM(CASE WHEN YEAR(STR_TO_DATE(s.sale_date, '%d-%m-%Y')) = {yc} THEN s.quantity * p.Price ELSE 0 END) - "
-        f"SUM(CASE WHEN YEAR(STR_TO_DATE(s.sale_date, '%d-%m-%Y')) = {yp} THEN s.quantity * p.Price ELSE 0 END)) * 100.0 / "
-        f"NULLIF(SUM(CASE WHEN YEAR(STR_TO_DATE(s.sale_date, '%d-%m-%Y')) = {yp} THEN s.quantity * p.Price ELSE 0 END), 0), 2) AS growth_pct "
+        f"SUM(CASE WHEN year(date_parse(s.sale_date, '%d-%m-%Y')) = {yc} THEN s.quantity * p.Price ELSE 0 END) AS revenue_current_year, "
+        f"SUM(CASE WHEN year(date_parse(s.sale_date, '%d-%m-%Y')) = {yp} THEN s.quantity * p.Price ELSE 0 END) AS revenue_previous_year, "
+        f"SUM(CASE WHEN year(date_parse(s.sale_date, '%d-%m-%Y')) = {yc} THEN s.quantity * p.Price ELSE 0 END) - "
+        f"SUM(CASE WHEN year(date_parse(s.sale_date, '%d-%m-%Y')) = {yp} THEN s.quantity * p.Price ELSE 0 END) AS revenue_growth, "
+        f"ROUND((SUM(CASE WHEN year(date_parse(s.sale_date, '%d-%m-%Y')) = {yc} THEN s.quantity * p.Price ELSE 0 END) - "
+        f"SUM(CASE WHEN year(date_parse(s.sale_date, '%d-%m-%Y')) = {yp} THEN s.quantity * p.Price ELSE 0 END)) * 100.0 / "
+        f"NULLIF(SUM(CASE WHEN year(date_parse(s.sale_date, '%d-%m-%Y')) = {yp} THEN s.quantity * p.Price ELSE 0 END), 0), 2) AS growth_pct "
         f"FROM sales s JOIN products p ON s.product_id = p.Product_ID "
         f"JOIN stores st ON s.store_id = st.Store_ID "
         f"JOIN category c ON p.Category_ID = c.category_id "
@@ -340,7 +346,7 @@ def new_product_launch_performance(
         f"COUNT(s.sale_id) AS transaction_count "
         f"FROM products p JOIN category c ON p.Category_ID = c.category_id "
         f"LEFT JOIN sales s ON p.Product_ID = s.product_id "
-        f"WHERE p.Launch_Date >= {_lit(ld)} AND {cat_filter} "
+        f"WHERE p.Launch_Date >= DATE {_lit(ld)} AND {cat_filter} "
         f"GROUP BY p.Product_ID, p.Product_Name, c.category_name, p.Launch_Date, p.Price "
         f"ORDER BY p.Launch_Date DESC"
     )
@@ -435,10 +441,10 @@ def product_revenue_share_in_category(
         f"      FROM sales s2 JOIN products p2 ON s2.product_id = p2.Product_ID "
         f"      JOIN category c2 ON p2.Category_ID = c2.category_id "
         f"      WHERE c2.category_name = {_lit(cat)} "
-        f"      AND STR_TO_DATE(s2.sale_date, '%d-%m-%Y') BETWEEN {_lit(sd)} AND {_lit(ed)} "
+        f"      AND date_parse(s2.sale_date, '%d-%m-%Y') BETWEEN DATE {_lit(sd)} AND DATE {_lit(ed)} "
         f"      GROUP BY c2.category_id) cat_total ON c.category_id = cat_total.category_id "
         f"WHERE c.category_name = {_lit(cat)} "
-        f"AND STR_TO_DATE(s.sale_date, '%d-%m-%Y') BETWEEN {_lit(sd)} AND {_lit(ed)} "
+        f"AND date_parse(s.sale_date, '%d-%m-%Y') BETWEEN DATE {_lit(sd)} AND DATE {_lit(ed)} "
         f"GROUP BY p.Product_Name, cat_total.category_revenue ORDER BY revenue_share_pct DESC"
     )
     return _ok(sql, {"query_id": "Q09", "output_columns": ["Product_Name", "product_revenue", "category_revenue", "revenue_share_pct"]})
@@ -478,15 +484,15 @@ def quarterly_store_sales_summary(
         return _err(errors)
     sql = (
         f"SELECT st.Store_Name, st.City, st.Country, "
-        f"CONCAT(YEAR(STR_TO_DATE(s.sale_date, '%d-%m-%Y')), '-Q', QUARTER(STR_TO_DATE(s.sale_date, '%d-%m-%Y'))) AS quarter, "
+        f"CONCAT(CAST(year(date_parse(s.sale_date, '%d-%m-%Y')) AS VARCHAR), '-Q', CAST(quarter(date_parse(s.sale_date, '%d-%m-%Y')) AS VARCHAR)) AS quarter, "
         f"SUM(s.quantity) AS quarterly_units, SUM(s.quantity * p.Price) AS quarterly_revenue, "
         f"SUM(SUM(s.quantity * p.Price)) OVER (PARTITION BY st.Store_ID ORDER BY "
-        f"YEAR(STR_TO_DATE(s.sale_date, '%d-%m-%Y')), QUARTER(STR_TO_DATE(s.sale_date, '%d-%m-%Y'))) AS cumulative_revenue "
+        f"year(date_parse(s.sale_date, '%d-%m-%Y')), quarter(date_parse(s.sale_date, '%d-%m-%Y'))) AS cumulative_revenue "
         f"FROM sales s JOIN products p ON s.product_id = p.Product_ID "
         f"JOIN stores st ON s.store_id = st.Store_ID "
-        f"WHERE YEAR(STR_TO_DATE(s.sale_date, '%d-%m-%Y')) = {yr} AND {co_filter} AND {sn_filter} "
+        f"WHERE year(date_parse(s.sale_date, '%d-%m-%Y')) = {yr} AND {co_filter} AND {sn_filter} "
         f"GROUP BY st.Store_ID, st.Store_Name, st.City, st.Country, "
-        f"YEAR(STR_TO_DATE(s.sale_date, '%d-%m-%Y')), QUARTER(STR_TO_DATE(s.sale_date, '%d-%m-%Y')) "
+        f"year(date_parse(s.sale_date, '%d-%m-%Y')), quarter(date_parse(s.sale_date, '%d-%m-%Y')) "
         f"ORDER BY st.Store_Name, quarter"
     )
     return _ok(sql, {"query_id": "Q10", "output_columns": ["Store_Name", "City", "Country", "quarter", "quarterly_units", "quarterly_revenue", "cumulative_revenue"]})
@@ -537,7 +543,7 @@ def top_warranty_claim_products(
         f"JOIN category c ON p.Category_ID = c.category_id "
         f"LEFT JOIN warranty w ON s.sale_id = w.sale_id "
         f"WHERE {cat_filter} "
-        f"AND STR_TO_DATE(s.sale_date, '%d-%m-%Y') BETWEEN {_lit(sd)} AND {_lit(ed)} "
+        f"AND date_parse(s.sale_date, '%d-%m-%Y') BETWEEN DATE {_lit(sd)} AND DATE {_lit(ed)} "
         f"GROUP BY p.Product_Name, c.category_name "
         f"HAVING COUNT(DISTINCT s.sale_id) > {ms} "
         f"ORDER BY claim_rate_pct DESC LIMIT {n}"
@@ -585,7 +591,7 @@ def city_sales_ranking_by_country(
         f"FROM sales s JOIN products p ON s.product_id = p.Product_ID "
         f"JOIN stores st ON s.store_id = st.Store_ID "
         f"WHERE st.Country = {_lit(co)} "
-        f"AND STR_TO_DATE(s.sale_date, '%d-%m-%Y') BETWEEN {_lit(sd)} AND {_lit(ed)} "
+        f"AND date_parse(s.sale_date, '%d-%m-%Y') BETWEEN DATE {_lit(sd)} AND DATE {_lit(ed)} "
         f"GROUP BY st.City ORDER BY revenue_rank"
     )
     return _ok(sql, {"query_id": "Q12", "output_columns": ["City", "store_count", "total_units", "city_revenue", "country_total_revenue", "revenue_share_pct", "revenue_rank"]})
@@ -625,9 +631,9 @@ def avg_days_to_warranty_claim(
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
     sql = (
         f"SELECT p.Product_Name, c.category_name, COUNT(w.claim_id) AS total_claims, "
-        f"ROUND(AVG(DATEDIFF(STR_TO_DATE(w.claim_date, '%Y-%m-%d'), STR_TO_DATE(s.sale_date, '%d-%m-%Y'))), 0) AS avg_days_to_claim, "
-        f"MIN(DATEDIFF(STR_TO_DATE(w.claim_date, '%Y-%m-%d'), STR_TO_DATE(s.sale_date, '%d-%m-%Y'))) AS min_days_to_claim, "
-        f"MAX(DATEDIFF(STR_TO_DATE(w.claim_date, '%Y-%m-%d'), STR_TO_DATE(s.sale_date, '%d-%m-%Y'))) AS max_days_to_claim "
+        f"ROUND(AVG(date_diff('day', date_parse(s.sale_date, '%d-%m-%Y'), date_parse(w.claim_date, '%Y-%m-%d'))), 0) AS avg_days_to_claim, "
+        f"MIN(date_diff('day', date_parse(s.sale_date, '%d-%m-%Y'), date_parse(w.claim_date, '%Y-%m-%d'))) AS min_days_to_claim, "
+        f"MAX(date_diff('day', date_parse(s.sale_date, '%d-%m-%Y'), date_parse(w.claim_date, '%Y-%m-%d'))) AS max_days_to_claim "
         f"FROM warranty w JOIN sales s ON w.sale_id = s.sale_id "
         f"JOIN products p ON s.product_id = p.Product_ID "
         f"JOIN category c ON p.Category_ID = c.category_id "
@@ -678,7 +684,7 @@ def store_category_sales_mix(
         f"JOIN category c ON p.Category_ID = c.category_id "
         f"JOIN stores st ON s.store_id = st.Store_ID "
         f"WHERE st.Store_Name = '{sn}' "
-        f"AND STR_TO_DATE(s.sale_date, '%d-%m-%Y') BETWEEN {_lit(sd)} AND {_lit(ed)} "
+        f"AND date_parse(s.sale_date, '%d-%m-%Y') BETWEEN DATE {_lit(sd)} AND DATE {_lit(ed)} "
         f"GROUP BY st.Store_Name, c.category_name ORDER BY category_revenue DESC"
     )
     return _ok(sql, {"query_id": "Q14", "output_columns": ["Store_Name", "category_name", "transactions", "total_units", "category_revenue", "revenue_pct"]})
@@ -730,7 +736,7 @@ def high_value_transactions(
             ed = _date(end_date, "end_date")
         except ValueError as e:
             errors.append(str(e))
-    conditions.append(f"STR_TO_DATE(s.sale_date, '%d-%m-%Y') BETWEEN {_lit(sd)} AND {_lit(ed)}")
+    conditions.append(f"date_parse(s.sale_date, '%d-%m-%Y') BETWEEN DATE {_lit(sd)} AND DATE {_lit(ed)}")
     lim = _pos_int(limit, "limit", default=200)
     if errors:
         return _err(errors)
@@ -766,7 +772,8 @@ def generate_sql(
     """Fallback SQL generator for ad-hoc queries NOT covered by Q01-Q15.
 
     Schema: sales (s), products (p), stores (st), category (c), warranty (w).
-    sale_date is DD-MM-YYYY — use STR_TO_DATE. Only SELECT queries allowed.
+    sale_date is DD-MM-YYYY — use date_parse(sale_date, '%d-%m-%Y'). Only SELECT queries allowed.
+    Use Trino/Athena SQL syntax (date_parse, date_format, date_diff, year, quarter).
     """
     description = (query_description or "").strip()
     sql = (sql_query or "").strip()
