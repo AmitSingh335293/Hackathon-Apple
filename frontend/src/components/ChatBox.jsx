@@ -72,8 +72,8 @@ const samplePrompts = [
   'Total sales for iPad in 2024',
   'Compare iPhone and Mac revenue',
   'What are the top selling products?',
-  'Revenue breakdown by customer segment',
   'Show Apple Watch sales trends',
+  'Compare store-level sales performance for all stores in Japan'
 ];
 
 // Enhanced Dark Mode Toggle with ultra-smooth animations

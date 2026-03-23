@@ -127,13 +127,18 @@ async def ask_query(request: QueryRequest) -> QueryResponse:
                 
                 ctx.log("info", "Query executed", row_count=total_rows)
                 
-                # Step 4: Generate summary
+                # Step 4: Generate summary (non-critical — don't fail the request)
                 ctx.log("info", "Generating summary")
-                summary = await llm_service.generate_summary(
-                    user_query=request.query,
-                    sql_query=sql_query,
-                    results=results
-                )
+                try:
+                    summary = await llm_service.generate_summary(
+                        user_query=request.query,
+                        sql_query=sql_query,
+                        results=results
+                    )
+                except Exception as e:
+                    ctx.log("warning", "Summary generation failed, returning results without summary", error=str(e))
+                    summary = None
+                    warnings.append("AI summary unavailable — results returned without summary.")
                 
                 query_status = QueryStatus.COMPLETED
             
