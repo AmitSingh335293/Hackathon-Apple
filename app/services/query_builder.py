@@ -211,101 +211,74 @@ class QueryBuilder:
     
     def _get_schema_context(self) -> Dict[str, Any]:
         """
-        Get database schema context for SQL generation.
-        Matches the actual Apple Retail Sales dataset exactly.
+        Get database schema context for SQL generation
         
         Returns:
-            Schema information including tables, columns, relationships,
-            sample values, and Athena/Trino-specific SQL rules.
+            Schema information including tables and columns
         """
         return {
             "database": self.settings.ATHENA_DATABASE,
-            "engine": "Amazon Athena (Trino/Presto SQL engine)",
             "tables": {
                 "sales": {
-                    "description": "Core transactional fact table — every individual sale across 75 global Apple retail stores. 1,040,200 rows.",
+                    "description": "Fact table containing sales transactions",
                     "columns": [
-                        {"name": "sale_id", "type": "STRING", "key": "PK", "description": "Unique sale identifier", "format": "XX-NNNNN (e.g. YG-8782, QX-999001)"},
-                        {"name": "sale_date", "type": "STRING", "description": "Sale date stored as DD-MM-YYYY string. MUST use date_parse(sale_date, '%d-%m-%Y') to convert for any date filtering or formatting.", "format": "DD-MM-YYYY (e.g. 16-06-2023, 13-04-2022)"},
-                        {"name": "store_id", "type": "STRING", "key": "FK → stores.Store_ID", "description": "Store identifier", "format": "ST-N (e.g. ST-10, ST-63)"},
-                        {"name": "product_id", "type": "STRING", "key": "FK → products.Product_ID", "description": "Product identifier", "format": "P-N (e.g. P-38, P-48)"},
-                        {"name": "quantity", "type": "INTEGER", "description": "Units sold per transaction. Range: 1-10."}
+                        {"name": "sale_id", "type": "STRING", "description": "Unique sale identifier"},
+                        {"name": "sale_date", "type": "STRING", "description": "Sale date (YYYY-MM-DD format)"},
+                        {"name": "store_id", "type": "STRING", "description": "Foreign key to stores table"},
+                        {"name": "product_id", "type": "STRING", "description": "Foreign key to products table"},
+                        {"name": "quantity", "type": "BIGINT", "description": "Quantity sold"}
+                    ],
+                    "joins": [
+                        "JOIN products ON sales.product_id = products.product_id",
+                        "JOIN stores ON sales.store_id = stores.store_id"
                     ]
                 },
                 "products": {
-                    "description": "Product dimension/catalog — 89 Apple products across 10 categories with pricing.",
+                    "description": "Product catalog with pricing",
                     "columns": [
-                        {"name": "Product_ID", "type": "STRING", "key": "PK", "description": "Product identifier", "format": "P-N (e.g. P-1, P-2)"},
-                        {"name": "Product_Name", "type": "STRING", "description": "Apple product name", "sample_values": ["MacBook", "MacBook Air (M1)", "MacBook Air (M2)", "MacBook Pro 13-inch", "iPhone 15", "iPhone 15 Pro", "iPad Air", "AirPods Pro", "Apple Watch Series 9", "iMac", "Apple TV 4K", "HomePod mini"]},
-                        {"name": "Category_ID", "type": "STRING", "key": "FK → category.category_id", "description": "Category identifier", "format": "CAT-N (e.g. CAT-1, CAT-2)"},
-                        {"name": "Launch_Date", "type": "STRING", "description": "Product launch date in YYYY-MM-DD format", "format": "YYYY-MM-DD (e.g. 2023-09-17)"},
-                        {"name": "Price", "type": "INTEGER", "description": "Product price in USD (integer)", "sample_values": ["149", "768", "1149", "1783"]}
+                        {"name": "product_id", "type": "STRING", "description": "Primary key"},
+                        {"name": "product_name", "type": "STRING", "description": "Product name (e.g., iPhone 15 Pro, MacBook Air M3)"},
+                        {"name": "category_id", "type": "STRING", "description": "Foreign key to categories"},
+                        {"name": "launch_date", "type": "STRING", "description": "Product launch date"},
+                        {"name": "price", "type": "BIGINT", "description": "Product price in USD"}
+                    ],
+                    "joins": [
+                        "JOIN categories ON products.category_id = categories.category_id"
                     ]
                 },
                 "stores": {
-                    "description": "Store dimension — 75 Apple retail stores across 19 countries and 47 cities.",
+                    "description": "Store/location information",
                     "columns": [
-                        {"name": "Store_ID", "type": "STRING", "key": "PK", "description": "Store identifier", "format": "ST-N (e.g. ST-1, ST-2)"},
-                        {"name": "Store_Name", "type": "STRING", "description": "Official store name", "sample_values": ["Apple Fifth Avenue", "Apple Union Square", "Apple Michigan Avenue", "Apple Regent Street"]},
-                        {"name": "City", "type": "STRING", "description": "City name", "sample_values": ["New York", "San Francisco", "Chicago", "Los Angeles", "London", "Tokyo", "Shanghai"]},
-                        {"name": "Country", "type": "STRING", "description": "Country name (19 countries)", "allowed_values": ["Australia", "Austria", "Canada", "China", "Colombia", "France", "Germany", "Italy", "Japan", "Mexico", "Netherlands", "Singapore", "South Korea", "Spain", "Taiwan", "Thailand", "UAE", "United Kingdom", "United States"]}
+                        {"name": "store_id", "type": "STRING", "description": "Primary key"},
+                        {"name": "store_name", "type": "STRING", "description": "Store name (e.g., Apple Fifth Avenue)"},
+                        {"name": "city", "type": "STRING", "description": "City name"},
+                        {"name": "country", "type": "STRING", "description": "Country name"}
                     ]
                 },
-                "category": {
-                    "description": "Product category lookup — 10 Apple product categories. NOTE: table name is 'category' (singular), NOT 'categories'.",
+                "categories": {
+                    "description": "Product categories",
                     "columns": [
-                        {"name": "category_id", "type": "STRING", "key": "PK", "description": "Category identifier", "format": "CAT-N (e.g. CAT-1, CAT-2)"},
-                        {"name": "category_name", "type": "STRING", "description": "Category name", "allowed_values": ["Laptop", "Audio", "Tablet", "Smartphone", "Wearable", "Streaming Device", "Desktop", "Subscription Service", "Smart Speaker", "Accessories"]}
+                        {"name": "category_id", "type": "STRING", "description": "Primary key"},
+                        {"name": "category_name", "type": "STRING", "description": "Category (iPhone, Mac, iPad, Apple Watch, AirPods, Accessories)"}
                     ]
                 },
                 "warranty": {
-                    "description": "Warranty claims — 30,000 claims (~2.88% of sales). Not all sales have warranty claims.",
+                    "description": "Warranty claims",
                     "columns": [
-                        {"name": "claim_id", "type": "STRING", "key": "PK", "description": "Claim identifier", "format": "CL-NNNNN (e.g. CL-58750)"},
-                        {"name": "claim_date", "type": "STRING", "description": "Claim date in YYYY-MM-DD format", "format": "YYYY-MM-DD (e.g. 2024-01-30)"},
-                        {"name": "sale_id", "type": "STRING", "key": "FK → sales.sale_id", "description": "Sale transaction this claim is against"},
-                        {"name": "repair_status", "type": "STRING", "description": "Repair status", "allowed_values": ["Completed", "Pending", "In Progress", "Rejected"]}
+                        {"name": "claim_id", "type": "STRING", "description": "Primary key"},
+                        {"name": "claim_date", "type": "STRING", "description": "Claim date (YYYY-MM-DD)"},
+                        {"name": "sale_id", "type": "STRING", "description": "Foreign key to sales"},
+                        {"name": "repair_status", "type": "STRING", "description": "Status: Completed, Rejected, Pending, In Progress"}
+                    ],
+                    "joins": [
+                        "JOIN sales ON warranty.sale_id = sales.sale_id"
                     ]
                 }
             },
-            "relationships": [
-                "sales.product_id = products.Product_ID",
-                "sales.store_id = stores.Store_ID",
-                "products.Category_ID = category.category_id",
-                "warranty.sale_id = sales.sale_id"
-            ],
-            "join_examples": [
-                "sales s JOIN products p ON s.product_id = p.Product_ID",
-                "sales s JOIN stores st ON s.store_id = st.Store_ID",
-                "products p JOIN category c ON p.Category_ID = c.category_id",
-                "warranty w JOIN sales s ON w.sale_id = s.sale_id"
-            ],
-            "common_query_patterns": [
-                "Revenue calculation: SUM(s.quantity * p.Price)",
-                "Filter by product: p.Product_Name = 'iPhone 15' (use exact name, case-sensitive)",
-                "Filter by country: st.Country = 'United States' (use full country name from allowed_values)",
-                "Filter by category: c.category_name = 'Smartphone' (use exact name from allowed_values)",
-                "Date filtering: date_parse(s.sale_date, '%d-%m-%Y') BETWEEN DATE '2024-01-01' AND DATE '2024-12-31'",
-                "Extract year: year(date_parse(s.sale_date, '%d-%m-%Y'))",
-                "Extract month: date_format(date_parse(s.sale_date, '%d-%m-%Y'), '%Y-%m')",
-                "Warranty join: warranty w JOIN sales s ON w.sale_id = s.sale_id JOIN products p ON s.product_id = p.Product_ID"
-            ],
-            "athena_trino_sql_rules": [
-                "CRITICAL: sale_date is stored as DD-MM-YYYY string. Always use date_parse(s.sale_date, '%d-%m-%Y') before any date comparison, extraction, or formatting.",
-                "Use DATE 'YYYY-MM-DD' literals for date comparisons (e.g., DATE '2024-01-01'), not bare strings.",
-                "Use date_format(date_parse(...), '<pattern>') for formatting dates in output.",
-                "Use year(), month(), day() functions on parsed dates for extraction.",
-                "Column names are CASE-SENSITIVE: products uses PascalCase (Product_ID, Product_Name, Category_ID, Launch_Date, Price), stores uses PascalCase (Store_ID, Store_Name, City, Country), sales uses lowercase (sale_id, sale_date, store_id, product_id, quantity), category uses lowercase (category_id, category_name), warranty uses lowercase (claim_id, claim_date, sale_id, repair_status).",
-                "Table name is 'category' (singular), NOT 'categories'.",
-                "String comparisons are case-sensitive in Athena/Trino. Match exact casing from allowed_values.",
-                "Use LIMIT to cap result rows (max 1000).",
-                "Do NOT use ILIKE — use lower() with LIKE for case-insensitive matching if needed.",
-                "Use ROUND(value, N) for decimal rounding.",
-                "Use COALESCE() to handle NULLs in calculations.",
-                "Warranty claims exist for only ~2.88% of sales — use LEFT JOIN when you need all sales including those without claims.",
-                "Do NOT end SQL with a semicolon.",
-                "Do NOT use AS keyword for table aliases — use: FROM sales s (not FROM sales AS s).",
-                "Do NOT use double quotes for string literals — use single quotes only.",
-                "CONCAT() or || operator for string concatenation — not +."
+            "common_patterns": [
+                "Revenue: SUM(sales.quantity * products.price)",
+                "Filter by product: products.product_name LIKE '%iPhone%'",
+                "Filter by country: stores.country = 'India'",
+                "Date range: sales.sale_date BETWEEN '2024-01-01' AND '2024-12-31'"
             ]
         }

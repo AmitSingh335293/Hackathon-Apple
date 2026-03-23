@@ -172,9 +172,9 @@ Use null for missing values."""
         Returns:
             Generated SQL query string
         """
-        prompt = f"""You are an expert SQL query generator for Apple retail sales analytics using Amazon Athena (Trino/Presto engine).
+        prompt = f"""You are an expert SQL query generator for Apple sales analytics using Amazon Athena.
 
-Database Schema & Rules:
+Database Schema:
 {json.dumps(schema_context, indent=2)}
 
 User Intent:
@@ -182,19 +182,16 @@ User Intent:
 
 User Question: "{user_query}"
 
-Generate a valid Athena-compatible SQL query. You MUST follow these rules:
-1. Use ONLY the exact table and column names from the schema (column names are CASE-SENSITIVE).
-2. The table name is 'category' (singular), NOT 'categories'.
-3. sale_date is stored as 'DD-MM-YYYY' string — ALWAYS use date_parse(s.sale_date, '%d-%m-%Y') for date operations.
-4. Use DATE 'YYYY-MM-DD' literals for date comparisons.
-5. Use exact values from allowed_values/sample_values for filtering (case-sensitive).
-6. Follow join patterns from join_examples exactly.
-7. Follow all athena_trino_sql_rules strictly.
-8. Include GROUP BY, ORDER BY, and LIMIT (max 1000) where appropriate.
-9. Do NOT end the query with a semicolon.
-10. Do NOT use AS for table aliases (use: FROM sales s, not FROM sales AS s).
+Generate a valid SQL query that:
+1. Uses only the tables and columns from the schema
+2. Follows Athena/Presto SQL syntax
+3. Includes appropriate WHERE clauses for filtering
+4. Uses proper aggregations (SUM, COUNT, AVG, etc.)
+5. Includes GROUP BY and ORDER BY where appropriate
+6. Limits results to 1000 rows maximum
+7. Uses date format 'YYYY-MM-DD'
 
-Return ONLY the raw SQL query, no explanations, no markdown."""
+Return ONLY the SQL query, no explanations."""
 
         if self.settings.MOCK_MODE:
             return self._mock_generate_sql(user_query, intent_data)
