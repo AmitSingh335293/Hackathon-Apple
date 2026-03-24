@@ -218,6 +218,16 @@ async def ask_query(request: QueryRequest) -> QueryResponse:
             query_executor = QueryExecutor()
             llm_service = LLMService()
             
+            # Step 0: Guardrail — validate query is relevant to Apple retail data
+            ctx.log("info", "Validating query relevance")
+            relevance = await llm_service.validate_query_relevance(request.query)
+            if not relevance["is_relevant"]:
+                ctx.log("info", "Query rejected by guardrail", reason=relevance["rejection_message"])
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=relevance["rejection_message"]
+                )
+
             # Step 1: Generate SQL via MCP Client (Strands Agent picks the right tool)
             ctx.log("info", "Generating SQL via MCP tools")
             mcp_result = mcp_client.generate_sql(user_query=request.query)

@@ -21,9 +21,15 @@ logger = logging.getLogger(__name__)
 mcp = FastMCP(
     "apple-retail-sql",
     instructions=(
-        "You are a SQL query assistant for Apple Retail Sales data. "
+        "You are a SQL query assistant for Apple Retail Sales data on Athena (Trino SQL dialect). "
         "Use the predefined tools (Q01-Q15) for common business queries. "
-        "Only use generate_sql when no predefined tool fits the request."
+        "Only use generate_sql when no predefined tool fits the request. "
+        "IMPORTANT: sale_date is DD-MM-YYYY string — always use date_parse(sale_date, '%%d-%%m-%%Y'). "
+        "Launch_Date is YYYY-MM-DD string — use CAST(Launch_Date AS DATE). "
+        "claim_date is YYYY-MM-DD string — use date_parse(claim_date, '%%Y-%%m-%%d'). "
+        "Date literals require DATE keyword: DATE '2023-01-01'. "
+        "Never use MySQL functions (STR_TO_DATE, DATE_FORMAT uppercase, YEAR(), DATEDIFF). "
+        "Column names are case-sensitive — use exact case from the schema."
     ),
 )
 
@@ -346,7 +352,7 @@ def new_product_launch_performance(
         f"COUNT(s.sale_id) AS transaction_count "
         f"FROM products p JOIN category c ON p.Category_ID = c.category_id "
         f"LEFT JOIN sales s ON p.Product_ID = s.product_id "
-        f"WHERE p.Launch_Date >= DATE {_lit(ld)} AND {cat_filter} "
+        f"WHERE CAST(p.Launch_Date AS DATE) >= DATE {_lit(ld)} AND {cat_filter} "
         f"GROUP BY p.Product_ID, p.Product_Name, c.category_name, p.Launch_Date, p.Price "
         f"ORDER BY p.Launch_Date DESC"
     )
@@ -755,25 +761,111 @@ def high_value_transactions(
 
 
 # ── generate_sql: Fallback for ad-hoc queries ─────────────────────────────
+
+# Full schema context for the LLM agent when generating ad-hoc SQL
+_SCHEMA_CONTEXT = """
+=== DATABASE: apple_analytics_db (Athena / Trino SQL dialect) ===
+
+TABLE: sales  (Fact table, ~1M rows)
+  sale_id     STRING  PK   -- e.g. 'YG-8782'
+  sale_date   STRING       -- format: DD-MM-YYYY (e.g. '16-06-2023'). Parse with: date_parse(sale_date, '%d-%m-%Y')
+  store_id    STRING  FK → stores.Store_ID
+  product_id  STRING  FK → products.Product_ID
+  quantity    BIGINT       -- range: 1-10
+
+TABLE: products  (Dimension, 89 products)
+  product_id    STRING  PK   -- e.g. 'P-1'
+  product_name  STRING       -- e.g. 'iPhone 14 Pro', 'MacBook Air (M2)', 'AirPods Pro'
+  category_id   STRING  FK → category.category_id  -- e.g. 'CAT-1'
+  launch_date   STRING       -- format: YYYY-MM-DD (e.g. '2023-09-17'). Compare with: CAST(Launch_Date AS DATE)
+  price         BIGINT       -- range: 231-1965 (USD)
+
+TABLE: stores  (Dimension, 75 stores)
+  Store_ID    STRING  PK   -- e.g. 'ST-1'
+  Store_Name  STRING       -- e.g. 'Apple Fifth Avenue', 'Apple Union Square'
+  City        STRING       -- 47 cities worldwide
+  Country     STRING       -- 19 countries
+
+TABLE: category  (Dimension, 10 categories)
+  category_id    STRING  PK  -- e.g. 'CAT-1'
+  category_name  STRING      -- 10 values (see below)
+
+TABLE: warranty  (30K claims)
+  claim_id       STRING  PK   -- e.g. 'CL-58750'
+  claim_date     STRING        -- format: YYYY-MM-DD (e.g. '2024-01-30'). Parse with: date_parse(claim_date, '%Y-%m-%d')
+  sale_id        STRING  FK → sales.sale_id
+  repair_status  STRING        -- 4 values: 'Completed', 'Pending', 'In Progress', 'Rejected'
+
+=== JOIN PATHS ===
+  sales → products:  s.product_id = p.Product_ID
+  sales → stores:    s.store_id = st.Store_ID
+  products → category: p.Category_ID = c.category_id
+  warranty → sales:  w.sale_id = s.sale_id
+  (warranty → products: via sales join)
+
+=== STANDARD ALIASES ===
+  sales=s, products=p, stores=st, category=c, warranty=w
+
+=== ENUM VALUES ===
+  category_name: Accessories, Audio, Desktop, Laptop, Smart Speaker, Smartphone, Streaming Device, Subscription Service, Tablet, Wearable
+  Country: Australia, Austria, Canada, China, Colombia, France, Germany, Italy, Japan, Mexico, Netherlands, Singapore, South Korea, Spain, Taiwan, Thailand, UAE, United Kingdom, United States
+  repair_status: Completed, Pending, In Progress, Rejected
+
+=== TRINO/ATHENA SQL RULES ===
+  1. sale_date is DD-MM-YYYY string → use date_parse(s.sale_date, '%d-%m-%Y') to convert to timestamp
+  2. claim_date is YYYY-MM-DD string → use date_parse(w.claim_date, '%Y-%m-%d') to convert to timestamp
+  3. Launch_Date is YYYY-MM-DD string → use CAST(p.Launch_Date AS DATE) for date comparisons
+  4. Date literals must use DATE keyword: DATE '2023-01-01'
+  5. Use date_format() not DATE_FORMAT(), year() not YEAR(), quarter() not QUARTER()
+  6. Use date_diff('day', start, end) not DATEDIFF()
+  7. CONCAT requires VARCHAR args → CAST(numeric AS VARCHAR) before concatenating
+  8. ROUND() is supported. NULLIF() is supported.
+  9. Window functions (SUM() OVER, RANK() OVER, etc.) are fully supported.
+  10. Do NOT use STR_TO_DATE (MySQL only). Use date_parse instead.
+  11. Column names are case-sensitive - use exact case as shown above.
+  12. Only SELECT queries allowed. No INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE.
+
+=== REVENUE CALCULATION ===
+  Revenue = s.quantity * p.Price (join sales to products)
+
+=== EXAMPLE QUERIES ===
+  -- Revenue by country in 2023:
+  SELECT st.Country, SUM(s.quantity * p.Price) AS revenue
+  FROM sales s JOIN products p ON s.product_id = p.Product_ID
+  JOIN stores st ON s.store_id = st.Store_ID
+  WHERE date_parse(s.sale_date, '%d-%m-%Y') BETWEEN DATE '2023-01-01' AND DATE '2023-12-31'
+  GROUP BY st.Country ORDER BY revenue DESC
+
+  -- Monthly trend:
+  SELECT date_format(date_parse(s.sale_date, '%d-%m-%Y'), '%Y-%m') AS month, SUM(s.quantity) AS units
+  FROM sales s GROUP BY 1 ORDER BY 1
+
+  -- Warranty days-to-claim:
+  SELECT p.Product_Name, AVG(date_diff('day', date_parse(s.sale_date, '%d-%m-%Y'), date_parse(w.claim_date, '%Y-%m-%d'))) AS avg_days
+  FROM warranty w JOIN sales s ON w.sale_id = s.sale_id JOIN products p ON s.product_id = p.Product_ID
+  GROUP BY p.Product_Name
+""".strip()
+
+
 @mcp.tool(
     name="generate_sql",
     description=(
         "Fallback SQL generator for ad-hoc queries NOT covered by the 15 predefined tools. "
         "Accepts a plain-English description and a complete SQL SELECT statement, validates it "
         "for safety (SELECT-only, known tables only), and returns the validated query. "
-        "Use ONLY when no predefined tool (Q01-Q15) matches the user's request."
+        "Use ONLY when no predefined tool (Q01-Q15) matches the user's request. "
+        "The full database schema, join paths, enum values, date format rules, and Trino syntax "
+        "guidelines are provided in the tool context."
     ),
     tags={"sql", "ad-hoc", "fallback", "custom", "generate"},
 )
 def generate_sql(
     query_description: Annotated[str, "Plain-English description of what data the user wants. Example: Average product price per category"],
-    sql_query: Annotated[str, "A complete SQL SELECT statement using the apple retail schema."],
+    sql_query: Annotated[str, "A complete SQL SELECT statement using the apple retail schema. Use Trino/Athena syntax."],
 ) -> str:
-    """Fallback SQL generator for ad-hoc queries NOT covered by Q01-Q15.
+    f"""Fallback SQL generator for ad-hoc queries NOT covered by Q01-Q15.
 
-    Schema: sales (s), products (p), stores (st), category (c), warranty (w).
-    sale_date is DD-MM-YYYY — use date_parse(sale_date, '%d-%m-%Y'). Only SELECT queries allowed.
-    Use Trino/Athena SQL syntax (date_parse, date_format, date_diff, year, quarter).
+    {_SCHEMA_CONTEXT}
     """
     description = (query_description or "").strip()
     sql = (sql_query or "").strip()
@@ -782,14 +874,8 @@ def generate_sql(
     if not sql:
         return json.dumps({
             "status": "needs_sql",
-            "message": "Provide a 'sql_query' SELECT statement.",
-            "tables": {
-                "sales (s)": "sale_id, sale_date [DD-MM-YYYY], store_id, product_id, quantity",
-                "products (p)": "Product_ID, Product_Name, Category_ID, Launch_Date, Price",
-                "stores (st)": "Store_ID, Store_Name, City, Country",
-                "category (c)": "category_id, category_name",
-                "warranty (w)": "claim_id, claim_date, sale_id, repair_status",
-            },
+            "message": "Provide a 'sql_query' SELECT statement using Trino/Athena syntax.",
+            "schema": _SCHEMA_CONTEXT,
         }, indent=2)
     issues = _validate_sql_safety(sql)
     blocking = [i for i in issues if "Blocked" in i or "must start" in i]

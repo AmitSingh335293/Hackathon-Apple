@@ -109,11 +109,11 @@ const SQLDisplay = ({ sqlQuery, status, matchedTemplate }) => {
           overflowX="auto"
           fontSize="sm"
           fontFamily="monospace"
-          color="green.300"
+          color="#7aff7a"
           border="1px solid"
           borderColor={useColorModeValue('gray.300', 'gray.600')}
         >
-          <Code colorScheme="green" bg="transparent" whiteSpace="pre-wrap" wordBreak="break-word">
+          <Code bg="transparent" color="#7aff7a" whiteSpace="pre-wrap" wordBreak="break-word">
             {sqlQuery}
           </Code>
         </Box>
