@@ -27,12 +27,13 @@ import { useAuth } from '../context/AuthContext';
 
 
 const samplePrompts = [
-  'Total sales for product MacBook in 2024',
-  "Show all products launched in 2023 in the Wearable category",
-  'Rank all cities in Germany by total revenue',
-  'What are the top selling products?',
-  'Show Apple Watch sales trends',
-  'Compare store-level sales performance for all stores in Japan'
+  'Show total revenue by country for last year',
+  'What are the top 5 best-selling Smartphone products this quarter?',
+  'Compare store performance across all stores in Japan last quarter',
+  'Show monthly sales trend for MacBook Pro 14-inch over the past year',
+  'What is the warranty claim rate by product category?',
+  'Compare year-over-year revenue growth for United States',
+  'Which products have the highest warranty claims in the last 6 months?',
 ];
 
 
