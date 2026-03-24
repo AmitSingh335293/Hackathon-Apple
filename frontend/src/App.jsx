@@ -71,7 +71,7 @@ const AppContent = () => {
           letterSpacing="tight"
           flex={1}
         >
-          VoiceGenie AI Assistant
+          Athena Voice
         </Heading>
 
         {/* Right controls — dark mode toggle + user profile, side by side */}
