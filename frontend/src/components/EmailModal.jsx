@@ -101,7 +101,8 @@ const EmailModal = ({ isOpen, onClose, data, columns, buildCSV }) => {
 
     setIsSending(true);
     try {
-      const response = await fetch('http://localhost:8000/api/v1/send-email', {
+      const backendUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+      const response = await fetch(`${backendUrl}/api/v1/send-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

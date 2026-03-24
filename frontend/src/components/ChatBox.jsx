@@ -258,7 +258,7 @@ const ChatBoxContent = () => {
     setTimeout(scrollToBottom, 100);
 
     try {
-      const backendUrl = 'http://localhost:8000';
+      const backendUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
       const response = await fetch(`${backendUrl}/api/v1/ask`, {
         method: "POST",
         headers: {

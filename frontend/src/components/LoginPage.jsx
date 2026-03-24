@@ -48,7 +48,8 @@ const LoginPageInner = () => {
     }
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/v1/auth/login', {
+      const backendUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+      const res = await fetch(`${backendUrl}/api/v1/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: username.trim(), password }),
