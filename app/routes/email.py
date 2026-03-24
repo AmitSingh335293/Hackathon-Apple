@@ -10,10 +10,11 @@ import ssl
 from email.message import EmailMessage
 from email.utils import formataddr
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 
 from app.models import EmailRequest
 from app.config import get_settings
+from app.routes.auth import get_current_user
 from app.utils import get_logger
 
 logger = get_logger(__name__)
@@ -35,7 +36,10 @@ router = APIRouter(prefix="/api/v1", tags=["email"])
         503: {"description": "SMTP not configured on server"},
     },
 )
-async def send_email(request: EmailRequest):
+async def send_email(
+    request: EmailRequest,
+    current_user: dict = Depends(get_current_user),
+):
     """
     Send query result CSV as an email attachment.
     SMTP config is loaded from server-side environment variables.

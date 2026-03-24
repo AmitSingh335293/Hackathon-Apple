@@ -53,13 +53,13 @@ echo ""
 # Backend setup
 echo -e "${BLUE}Setting up backend...${NC}"
 
-if [ ! -d "venv" ]; then
+if [ ! -d ".venv" ]; then
     echo "Creating Python virtual environment..."
-    python3 -m venv venv
+    python3 -m venv .venv
 fi
 
 echo "Activating virtual environment..."
-source venv/bin/activate
+source .venv/bin/activate
 
 echo "Installing backend dependencies..."
 pip install -q -r requirements.txt
@@ -98,8 +98,8 @@ echo ""
 
 # Start backend in background
 echo -e "${YELLOW}Starting backend on port 8000...${NC}"
-source venv/bin/activate
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 > backend.log 2>&1 &
+source .venv/bin/activate
+.venv/bin/python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 > backend.log 2>&1 &
 BACKEND_PID=$!
 
 # Wait for backend to start

@@ -30,6 +30,7 @@ import {
   WrapItem,
 } from '@chakra-ui/react';
 import { FaEnvelope, FaCheckCircle, FaPlus } from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext';
 
 const DEFAULT_FORM = {
   recipientInput: '',
@@ -42,6 +43,7 @@ const EmailModal = ({ isOpen, onClose, data, columns, buildCSV }) => {
   const [form, setForm] = useState(DEFAULT_FORM);
   const [isSending, setIsSending] = useState(false);
   const [sendResult, setSendResult] = useState(null);
+  const { token } = useAuth();
 
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
@@ -101,7 +103,10 @@ const EmailModal = ({ isOpen, onClose, data, columns, buildCSV }) => {
     try {
       const response = await fetch('http://localhost:8000/api/v1/send-email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify({
           recipient_emails: allRecipients,
           subject: form.subject.trim() || 'Query Results — VoiceGenie AI',
