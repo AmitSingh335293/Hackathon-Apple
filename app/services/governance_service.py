@@ -170,31 +170,34 @@ class GovernanceService:
         user_permissions: Optional[Dict[str, Any]] = None
     ) -> None:
         """
-        Validate user has access to requested tables
-        
-        Args:
-            tables: List of table names
-            user_id: User identifier
-            user_permissions: Optional permission data
-        
-        Raises:
-            QueryValidationError: If user lacks access to a table
+        Validate user has access to requested tables.
+        - Admins (role=admin) can access all allowed tables.
+        - Regular users can only access tables listed in their permissions.
         """
-        # Check against allowed tables
+        # Global allowlist (system-level)
+        globally_allowed = [t.lower() for t in self.settings.ALLOWED_TABLES]
+
         for table in tables:
-            if table not in [t.lower() for t in self.settings.ALLOWED_TABLES]:
+            table_lower = table.lower()
+
+            # 1. Must be in the global allowlist first
+            if table_lower not in globally_allowed:
                 raise QueryValidationError(
-                    f"Access denied to table: {table}. "
+                    f"Table '{table}' is not in the system allowlist. "
                     f"Allowed tables: {', '.join(self.settings.ALLOWED_TABLES)}"
                 )
-        
-        # Additional user-level permissions check
-        if user_permissions:
-            restricted_tables = user_permissions.get('restricted_tables', [])
-            for table in tables:
-                if table in restricted_tables:
+
+            # 2. Per-user table permission check
+            if user_permissions:
+                role = user_permissions.get("role", "user")
+                # Admins bypass per-user check
+                if role == "admin":
+                    continue
+                allowed_for_user = [t.lower() for t in user_permissions.get("allowed_tables", [])]
+                if allowed_for_user and table_lower not in allowed_for_user:
                     raise QueryValidationError(
-                        f"User {user_id} does not have permission to access table: {table}"
+                        f"Access denied: you do not have permission to query table '{table}'. "
+                        f"Your permitted tables: {', '.join(user_permissions.get('allowed_tables', []))}"
                     )
     
     def _estimate_query_cost(

@@ -1,9 +1,8 @@
 import 'regenerator-runtime/runtime';
 import React, { useEffect, useState, useRef } from 'react';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
-import { FaMicrophone, FaMicrophoneSlash, FaVolumeMute, FaVolumeUp, FaUser, FaRobot, FaMoon, FaSun, FaPlay, FaStop, FaPlus } from 'react-icons/fa';
+import { FaMicrophone, FaMicrophoneSlash, FaVolumeMute, FaVolumeUp, FaUser, FaRobot, FaPlay, FaStop, FaPlus } from 'react-icons/fa';
 import {
-  ChakraProvider,
   Box,
   Button,
   Text,
@@ -17,8 +16,6 @@ import {
   useColorMode,
   useColorModeValue,
   IconButton,
-  extendTheme,
-  ColorModeScript,
   Switch,
   FormControl,
   FormLabel
@@ -26,45 +23,8 @@ import {
 import SQLDisplay from './SQLDisplay';
 import DataTable from './DataTable';
 import SummaryCard from './SummaryCard';
+import { useAuth } from '../context/AuthContext';
 
-// Configure theme for ultra-smooth dark mode transitions
-const config = {
-  initialColorMode: 'light',
-  useSystemColorMode: false,
-};
-
-const theme = extendTheme({ 
-  config,
-  fonts: {
-    heading: `'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`,
-    body: `'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`,
-  },
-  styles: {
-    global: {
-      '*': {
-        transition: 'all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-      },
-      'html, body': {
-        transition: 'background-color 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94), color 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-        fontFamily: `'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`,
-      },
-      // Smooth scrollbar transitions
-      '::-webkit-scrollbar': {
-        width: '8px',
-        transition: 'all 0.8s ease',
-      },
-      '::-webkit-scrollbar-track': {
-        background: 'var(--chakra-colors-gray-100)',
-        transition: 'background 0.8s ease',
-      },
-      '::-webkit-scrollbar-thumb': {
-        background: 'var(--chakra-colors-gray-400)',
-        borderRadius: '4px',
-        transition: 'background 0.8s ease',
-      },
-    },
-  },
-});
 
 const samplePrompts = [
   'What was iPhone revenue in India last quarter?',
@@ -76,168 +36,6 @@ const samplePrompts = [
   'Compare store-level sales performance for all stores in Japan'
 ];
 
-// Enhanced Dark Mode Toggle with ultra-smooth animations
-const DarkModeToggle = () => {
-  const { colorMode, toggleColorMode } = useColorMode();
-  const isDark = colorMode === 'dark';
-  
-  return (
-    <Box
-      position="absolute"
-      top={4}
-      right={4}
-      zIndex={1000}
-      bg={useColorModeValue('rgba(255, 255, 255, 0.95)', 'rgba(26, 32, 44, 0.95)')}
-      backdropFilter="blur(12px)"
-      borderRadius="full"
-      p={2} // Reduced padding
-      boxShadow={useColorModeValue(
-        '0 10px 30px rgba(0, 0, 0, 0.1), 0 4px 15px rgba(0, 0, 0, 0.05)',
-        '0 10px 30px rgba(0, 0, 0, 0.4), 0 4px 15px rgba(0, 0, 0, 0.2)'
-      )}
-      border="1px solid"
-      borderColor={useColorModeValue('rgba(226, 232, 240, 0.8)', 'rgba(74, 85, 104, 0.8)')}
-      transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
-      _hover={{
-        transform: 'scale(1.08) translateY(-2px)',
-        boxShadow: useColorModeValue(
-          '0 20px 40px rgba(0, 0, 0, 0.15), 0 8px 20px rgba(0, 0, 0, 0.1)',
-          '0 20px 40px rgba(0, 0, 0, 0.5), 0 8px 20px rgba(0, 0, 0, 0.3)'
-        ),
-      }}
-      cursor="pointer"
-      onClick={toggleColorMode}
-      width="auto"
-      height="auto"
-    >
-      <HStack spacing={2} alignItems="center"> {/* Reduced spacing */}
-        {/* Animated Sun Icon */}
-        <Box
-          position="relative"
-          transition="all 1s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
-          transform={isDark ? 'rotate(180deg) scale(0.7)' : 'rotate(0deg) scale(1)'}
-          opacity={isDark ? 0.3 : 1}
-          filter={isDark ? 'blur(2px)' : 'blur(0px)'}
-        >
-          <FaSun 
-            color={isDark ? '#9CA3AF' : '#F59E0B'} 
-            size="16px" // Reduced icon size
-          />
-          {/* Animated glow effect */}
-          {!isDark && (
-            <Box
-              position="absolute"
-              top="50%"
-              left="50%"
-              transform="translate(-50%, -50%)"
-              width="22px"
-              height="22px"
-              borderRadius="full"
-              bg="rgba(245, 158, 11, 0.2)"
-              filter="blur(6px)"
-              animation="sunGlow 3s ease-in-out infinite"
-            />
-          )}
-        </Box>
-        {/* Custom Animated Toggle */}
-        <Box
-          position="relative"
-          width="36px" // Reduced width
-          height="18px" // Reduced height
-          bg={isDark ? 'blue.500' : 'gray.300'}
-          borderRadius="full"
-          transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
-          cursor="pointer"
-          boxShadow="inset 0 2px 4px rgba(0, 0, 0, 0.1)"
-          _hover={{
-            bg: isDark ? 'blue.400' : 'gray.400',
-            transform: 'scale(1.05)'
-          }}
-        >
-          {/* Animated Toggle Circle */}
-          <Box
-            position="absolute"
-            top="1px"
-            left={isDark ? "18px" : "1px"}
-            width="16px" // Reduced size
-            height="16px"
-            bg="white"
-            borderRadius="full"
-            transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
-            boxShadow="0 2px 4px rgba(0, 0, 0, 0.2)"
-            transform={isDark ? 'rotate(360deg)' : 'rotate(0deg)'}
-          />
-          {/* Animated stars for dark mode */}
-          {isDark && (
-            <>
-              <Box
-                position="absolute"
-                top="4px"
-                left="7px"
-                width="1.2px"
-                height="1.2px"
-                bg="white"
-                borderRadius="full"
-                opacity="0.9"
-                animation="twinkle 2s infinite"
-              />
-              <Box
-                position="absolute"
-                top="10px"
-                left="12px"
-                width="1px"
-                height="1px"
-                bg="white"
-                borderRadius="full"
-                opacity="0.7"
-                animation="twinkle 2.5s infinite 0.5s"
-              />
-              <Box
-                position="absolute"
-                top="7px"
-                left="10px"
-                width="0.8px"
-                height="0.8px"
-                bg="white"
-                borderRadius="full"
-                opacity="0.8"
-                animation="twinkle 1.8s infinite 1s"
-              />
-            </>
-          )}
-        </Box>
-        {/* Animated Moon Icon */}
-        <Box
-          position="relative"
-          transition="all 1s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
-          transform={isDark ? 'rotate(0deg) scale(1)' : 'rotate(-180deg) scale(0.7)'}
-          opacity={isDark ? 1 : 0.3}
-          filter={isDark ? 'blur(0px)' : 'blur(2px)'}
-        >
-          <FaMoon 
-            color={isDark ? '#60A5FA' : '#9CA3AF'} 
-            size="14px" // Reduced icon size
-          />
-          {/* Animated moon glow */}
-          {isDark && (
-            <Box
-              position="absolute"
-              top="50%"
-              left="50%"
-              transform="translate(-50%, -50%)"
-              width="18px"
-              height="18px"
-              borderRadius="full"
-              bg="rgba(96, 165, 250, 0.15)"
-              filter="blur(4px)"
-              animation="moonGlow 4s ease-in-out infinite alternate"
-            />
-          )}
-        </Box>
-      </HStack>
-    </Box>
-  );
-};
 
 // Push-to-Talk Button Component
 const PushToTalkButton = ({ onStart, onStop, isListening }) => {
@@ -348,7 +146,8 @@ const ContinuousRecordingToggle = ({ isEnabled, onToggle }) => {
 
 const ChatBoxContent = () => {
   const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition();
-  
+  const { token, user, logout } = useAuth();
+
   // All state hooks first - maintain consistent order
   const [thinking, setThinking] = useState(false);
   const [aiText, setAiText] = useState('');
@@ -464,7 +263,8 @@ const ChatBoxContent = () => {
       const response = await fetch(`${backendUrl}/api/v1/ask`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({
           user_id: sessionId,
@@ -475,6 +275,11 @@ const ChatBoxContent = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
+        // Token expired or invalid — force logout
+        if (response.status === 401) {
+          logout();
+          return;
+        }
         throw new Error(errorData.detail || errorData.message || 'Query failed');
       }
 
@@ -717,8 +522,6 @@ const ChatBoxContent = () => {
       color={textColor}
       transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
     >
-      {/* Dark Mode Toggle */}
-      <DarkModeToggle />
 
       {/* Prompt Cards Section */}
       <Box
@@ -1305,36 +1108,31 @@ const ChatBox = () => {
   }, []);
 
   return (
-    <ChakraProvider theme={theme}>
-      <ColorModeScript initialColorMode={theme.config.initialColorMode} />
-      <style jsx global>{`
+    <>
+      <style>{`
         @keyframes sunGlow {
           0%, 100% { opacity: 0.2; transform: translate(-50%, -50%) scale(1); }
           50% { opacity: 0.4; transform: translate(-50%, -50%) scale(1.1); }
         }
-        
         @keyframes moonGlow {
           0% { opacity: 0.15; transform: translate(-50%, -50%) scale(1); }
           100% { opacity: 0.25; transform: translate(-50%, -50%) scale(1.05); }
         }
-        
         @keyframes twinkle {
           0%, 100% { opacity: 0.3; }
           50% { opacity: 1; }
         }
-
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.7; }
         }
-
         @keyframes blink {
           0%, 50% { opacity: 1; }
           51%, 100% { opacity: 0; }
         }
       `}</style>
       <ChatBoxContent />
-    </ChakraProvider>
+    </>
   );
 };
 

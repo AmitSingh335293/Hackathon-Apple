@@ -1,0 +1,35 @@
+[
+  {
+    "username": "admin",
+    "password": "admin123",
+    "email": "admin@apple-analytics.com",
+    "full_name": "Admin User",
+    "role": "admin",
+    "permissions": ["sales", "products", "stores", "category", "warranty"]
+  },
+  {
+    "username": "sales_user",
+    "password": "sales123",
+    "email": "sales@apple-analytics.com",
+    "full_name": "Sales Analyst",
+    "role": "user",
+    "permissions": ["sales", "products"]
+  },
+  {
+    "username": "store_manager",
+    "password": "store123",
+    "email": "stores@apple-analytics.com",
+    "full_name": "Store Manager",
+    "role": "user",
+    "permissions": ["stores", "sales"]
+  },
+  {
+    "username": "category_analyst",
+    "password": "category123",
+    "email": "category@apple-analytics.com",
+    "full_name": "Category Analyst",
+    "role": "user",
+    "permissions": ["category", "products", "warranty"]
+  }
+]
+

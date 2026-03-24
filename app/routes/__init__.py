@@ -1,4 +1,5 @@
 from .query import router as query_router
 from .email import router as email_router
+from .auth import router as auth_router
 
-__all__ = ["query_router", "email_router"]
+__all__ = ["query_router", "email_router", "auth_router"]

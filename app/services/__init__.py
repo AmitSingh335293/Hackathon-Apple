@@ -6,6 +6,7 @@ from .query_executor import QueryExecutor
 from .result_formatter import ResultFormatter
 from .governance_service import GovernanceService, QueryValidationError
 from .mcp_client_service import MCPClientService
+from .auth_service import AuthService
 
 __all__ = [
     "LLMService",
@@ -17,4 +18,5 @@ __all__ = [
     "GovernanceService",
     "QueryValidationError",
     "MCPClientService",
+    "AuthService",
 ]
